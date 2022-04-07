@@ -30,9 +30,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
-#include <getopt.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -42,12 +40,30 @@
 #ifdef _WIN32
 #include <io.h> /* _setmode() */
 #include <fcntl.h> /* _O_BINARY */
+//https://stackoverflow.com/questions/5801813/c-usleep-is-obsolete-workarounds-for-windows-mingw
+#include <windows.h>
+
+void usleep(__int64 usec)
+{
+    HANDLE timer;
+    LARGE_INTEGER ft;
+
+    ft.QuadPart = -(10*usec); // Convert to 100 nanosecond interval, negative value indicates relative time
+
+    timer = CreateWaitableTimer(NULL, TRUE, NULL);
+    SetWaitableTimer(timer, &ft, 0, NULL, NULL, 0);
+    WaitForSingleObject(timer, INFINITE);
+    CloseHandle(timer);
+}
+#else
+#include <unistd.h>
+#include <getopt.h>
 #endif
 
 #include "jtag.h"
 #include "lattice_cmds.h"
 
-static bool verbose = false;
+static uint32_t verbose = false;
 
 enum device_type {
     TYPE_NONE = 0,
@@ -799,6 +815,7 @@ static void help(const char *progname)
     qprintf( "  https://github.com/gregdavill/ecpprog/issues\n");
 }
 
+#ifndef _WIN32
 int ecpprog_main(int argc, char **argv)
 {
     /* used for error reporting */
@@ -1316,3 +1333,4 @@ int ecpprog_main(int argc, char **argv)
     jtag_deinit();
     return 0;
 }
+#endif

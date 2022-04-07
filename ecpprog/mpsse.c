@@ -28,7 +28,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 
 #include "mpsse.h"
 
@@ -36,7 +38,7 @@
 // MPSSE / FTDI definitions
 // ---------------------------------------------------------
 
-/* FTDI bank pinout typically used for iCE dev boards
+/* FTDI bank pinout typically used for iCE dev boards/
  * BUS IO | Signal | Control
  * -------+--------+--------------
  * xDBUS0 |    SCK | MPSSE

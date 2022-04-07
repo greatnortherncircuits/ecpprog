@@ -11,8 +11,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#ifndef _WIN32
 #include <unistd.h>
-
+#endif
 #include "mpsse.h"
 #include "jtag.h"
 
