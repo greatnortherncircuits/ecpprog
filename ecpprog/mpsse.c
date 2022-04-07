@@ -53,7 +53,8 @@ struct ftdi_context mpsse_ftdic;
 bool mpsse_ftdic_open = false;
 bool mpsse_ftdic_latency_set = false;
 unsigned char mpsse_ftdi_latency;
-
+int mpsse_error_last = 0;
+extern void qprintf ( const char * format, ... );
 
 // ---------------------------------------------------------
 // MPSSE / FTDI function implementations
@@ -67,7 +68,7 @@ void mpsse_check_rx()
 		int rc = ftdi_read_data(&mpsse_ftdic, &data, 1);
 		if (rc <= 0)
 			break;
-		fprintf(stderr, "unexpected rx byte: %02X\n", data);
+        qprintf( "unexpected rx byte: %02X\n", data);
 		cnt++;
 
 		if(cnt > 32)
@@ -77,15 +78,14 @@ void mpsse_check_rx()
 
 void mpsse_error(int status)
 {
+    mpsse_error_last = status;
 	//mpsse_check_rx();
-	fprintf(stderr, "ABORT.\n");
 	if (mpsse_ftdic_open) {
 		if (mpsse_ftdic_latency_set)
 			ftdi_set_latency_timer(&mpsse_ftdic, mpsse_ftdi_latency);
 		ftdi_usb_close(&mpsse_ftdic);
 	}
 	ftdi_deinit(&mpsse_ftdic);
-	exit(status);
 }
 
 uint8_t mpsse_recv_byte()
@@ -94,8 +94,9 @@ uint8_t mpsse_recv_byte()
 	while (1) {
 		int rc = ftdi_read_data(&mpsse_ftdic, &data, 1);
 		if (rc < 0) {
-			fprintf(stderr, "Read error.\n");
+            qprintf( "Read error.\n");
 			mpsse_error(2);
+            return 0;
 		}
 		if (rc == 1)
 			break;
@@ -108,8 +109,9 @@ void mpsse_send_byte(uint8_t data)
 {
 	int rc = ftdi_write_data(&mpsse_ftdic, &data, 1);
 	if (rc != 1) {
-		fprintf(stderr, "Write error (single byte, rc=%d, expected %d)(%s).\n", rc, 1, ftdi_get_error_string(&mpsse_ftdic));
+        qprintf( "Write error (single byte, rc=%d, expected %d)(%s).\n", rc, 1, ftdi_get_error_string(&mpsse_ftdic));
 		mpsse_error(2);
+        return;
 	}
 }
 
@@ -119,8 +121,9 @@ void mpsse_xfer(uint8_t* data_buffer, uint16_t send_length, uint16_t receive_len
 	if(send_length){
 		int rc = ftdi_write_data(&mpsse_ftdic, data_buffer, send_length);
 		if (rc != send_length) {
-			fprintf(stderr, "Write error (rc=%d, expected %d)[%s]\n", rc, 1, ftdi_get_error_string(&mpsse_ftdic));
+            qprintf( "Write error (rc=%d, expected %d)[%s]\n", rc, 1, ftdi_get_error_string(&mpsse_ftdic));
 			mpsse_error(2);
+            return;
 		}
 	}
 
@@ -131,8 +134,9 @@ void mpsse_xfer(uint8_t* data_buffer, uint16_t send_length, uint16_t receive_len
 		while(rx_len != receive_length){
 			int rc = ftdi_read_data(&mpsse_ftdic, data_buffer + rx_len, receive_length - rx_len);
 			if (rc < 0) {
-				fprintf(stderr, "Read error (rc=%d)[%s]\n", rc, ftdi_get_error_string(&mpsse_ftdic));
+                qprintf( "Read error (rc=%d)[%s]\n", rc, ftdi_get_error_string(&mpsse_ftdic));
 				mpsse_error(2);
+                return;
 			}else{
 				rx_len += rc;
 			}
@@ -140,7 +144,7 @@ void mpsse_xfer(uint8_t* data_buffer, uint16_t send_length, uint16_t receive_len
 	}
 }
 
-void mpsse_init(int ifnum, const char *devstr, int clkdiv)
+int mpsse_init(int ifnum, const char *devstr, int clkdiv)
 {
 	enum ftdi_interface ftdi_ifnum = INTERFACE_A;
 
@@ -167,51 +171,59 @@ void mpsse_init(int ifnum, const char *devstr, int clkdiv)
 
 	if (devstr != NULL) {
 		if (ftdi_usb_open_string(&mpsse_ftdic, devstr)) {
-			fprintf(stderr, "Can't find iCE FTDI USB device (device string %s).\n", devstr);
+            qprintf( "Can't find iCE FTDI USB device (device string %s).\n", devstr);
 			mpsse_error(2);
+            return -1;
 		}
 	} else {
 		if (ftdi_usb_open(&mpsse_ftdic, 0x0403, 0x6010) && ftdi_usb_open(&mpsse_ftdic, 0x0403, 0x6014)) {
-			fprintf(stderr, "Can't find iCE FTDI USB device (vendor_id 0x0403, device_id 0x6010 or 0x6014).\n");
+            qprintf( "Can't find iCE FTDI USB device (vendor_id 0x0403, device_id 0x6010 or 0x6014).\n");
 			mpsse_error(2);
+            return -1;
 		}
 	}
 
 	mpsse_ftdic_open = true;
 
 	if (ftdi_usb_reset(&mpsse_ftdic)) {
-		fprintf(stderr, "Failed to reset iCE FTDI USB device.\n");
+        qprintf( "Failed to reset iCE FTDI USB device.\n");
 		mpsse_error(2);
+        return -1;
 	}
 
 	if (ftdi_usb_purge_buffers(&mpsse_ftdic)) {
-		fprintf(stderr, "Failed to purge buffers on iCE FTDI USB device.\n");
+        qprintf( "Failed to purge buffers on iCE FTDI USB device.\n");
 		mpsse_error(2);
+        return -1;
 	}
 
 	if (ftdi_get_latency_timer(&mpsse_ftdic, &mpsse_ftdi_latency) < 0) {
-		fprintf(stderr, "Failed to get latency timer (%s).\n", ftdi_get_error_string(&mpsse_ftdic));
+        qprintf( "Failed to get latency timer (%s).\n", ftdi_get_error_string(&mpsse_ftdic));
 		mpsse_error(2);
+        return -1;
 	}
 
 	/* 1 is the fastest polling, it means 1 kHz polling */
 	if (ftdi_set_latency_timer(&mpsse_ftdic, 1) < 0) {
-		fprintf(stderr, "Failed to set latency timer (%s).\n", ftdi_get_error_string(&mpsse_ftdic));
+        qprintf( "Failed to set latency timer (%s).\n", ftdi_get_error_string(&mpsse_ftdic));
 		mpsse_error(2);
+        return -1;
 	}
 
 	mpsse_ftdic_latency_set = true;
 
 	/* Enter MPSSE (Multi-Protocol Synchronous Serial Engine) mode. Set all pins to output. */
 	if (ftdi_set_bitmode(&mpsse_ftdic, 0xff, BITMODE_MPSSE) < 0) {
-		fprintf(stderr, "Failed to set BITMODE_MPSSE on FTDI USB device.\n");
+        qprintf( "Failed to set BITMODE_MPSSE on FTDI USB device.\n");
 		mpsse_error(2);
+        return -1;
 	}
 
 	int rc = ftdi_usb_purge_buffers(&mpsse_ftdic);
 	if (rc != 0) {
-		fprintf(stderr, "Purge error.\n");
+        qprintf( "Purge error.\n");
 		mpsse_error(2);
+        return -1;
 	}
 
 	mpsse_send_byte(MC_TCK_X5);
@@ -224,6 +236,7 @@ void mpsse_init(int ifnum, const char *devstr, int clkdiv)
 	mpsse_send_byte(MC_SETB_LOW);
 	mpsse_send_byte(0x08); /* Value */
 	mpsse_send_byte(0x0B); /* Direction */
+    return 0;
 }
 
 void mpsse_close(void)

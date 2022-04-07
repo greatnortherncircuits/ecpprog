@@ -132,10 +132,11 @@ void jtag_deinit(){
  */
 void jtag_init(int ifnum, const char *devstr, int clkdiv)
 {
-	mpsse_init(ifnum, devstr, clkdiv);
-
-	jtag_set_current_state(STATE_TEST_LOGIC_RESET);
-	jtag_go_to_state(STATE_TEST_LOGIC_RESET);
+    int ret = mpsse_init(ifnum, devstr, clkdiv);
+    if(ret == 0) {
+        jtag_set_current_state(STATE_TEST_LOGIC_RESET);
+        jtag_go_to_state(STATE_TEST_LOGIC_RESET);
+    }
 }
 
 uint8_t data[32*1024];
