@@ -120,6 +120,9 @@ void mpsse_send_byte(uint8_t data)
 
 void mpsse_xfer(uint8_t* data_buffer, uint16_t send_length, uint16_t receive_length)
 {
+    if(mpsse_error_last != 0) {
+        return;
+    }
 	if(send_length){
 		int rc = ftdi_write_data(&mpsse_ftdic, data_buffer, send_length);
 		if (rc != send_length) {

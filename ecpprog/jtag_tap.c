@@ -275,7 +275,8 @@ void jtag_go_to_state(unsigned state)
 		mpsse_xfer(data, 3, 0);
 		
 	} else {
-		while (jtag_current_state() != state) {
+        int counts = 0;
+        while (jtag_current_state() != state && (counts++ < 10000)) {
 			uint8_t data[3] = {
 				MC_DATA_TMS | MC_DATA_LSB | MC_DATA_ICN | MC_DATA_BITS,
 				0,
