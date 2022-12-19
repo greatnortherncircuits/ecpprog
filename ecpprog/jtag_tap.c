@@ -225,7 +225,7 @@ void jtag_tap_shift(
 	/* if 'must_end' the send last byte seperately 
 	 * This way we toggle TMS on the last clock cycle */
 
-	while (data_bits >= (8 + must_end)) {
+    while (data_bits >= (8u + must_end)) {
 		uint32_t _data_bits = MIN(4096 + 2048, data_bits - must_end) & ~7U;
 
 		jtag_shift_bytes(
