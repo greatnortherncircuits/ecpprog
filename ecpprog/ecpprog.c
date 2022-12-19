@@ -64,6 +64,7 @@ void usleep(__int64 usec)
 #include "lattice_cmds.h"
 
 static uint32_t verbose = false;
+void qprintf ( const char * format, ... );
 
 enum device_type {
     TYPE_NONE = 0,
@@ -77,7 +78,7 @@ struct device_info {
     enum device_type type;
 };
 
-static struct device_info connected_device = {0};
+static struct device_info connected_device = {};
 
 
 // ---------------------------------------------------------
@@ -150,7 +151,7 @@ uint8_t bit_reverse(uint8_t in){
 
 void xfer_spi(uint8_t* data, uint32_t len){
     /* Reverse bit order of all bytes */
-    for(int i = 0; i < len; i++){
+    for(uint32_t i = 0; i < len; i++){
         data[i] = bit_reverse(data[i]);
     }
 
@@ -160,7 +161,7 @@ void xfer_spi(uint8_t* data, uint32_t len){
     jtag_tap_shift(data, data, len * 8, true);
 
     /* Reverse bit order of all return bytes */
-    for(int i = 0; i < len; i++){
+    for(uint32_t i = 0; i < len; i++){
         data[i] = bit_reverse(data[i]);
     }
 }
@@ -168,7 +169,7 @@ void xfer_spi(uint8_t* data, uint32_t len){
 void send_spi(uint8_t* data, uint32_t len){
 
     /* Flip bit order of all bytes */
-    for(int i = 0; i < len; i++){
+    for(uint32_t i = 0; i < len; i++){
         data[i] = bit_reverse(data[i]);
     }
 
@@ -177,7 +178,7 @@ void send_spi(uint8_t* data, uint32_t len){
     jtag_tap_shift(data, data, len * 8, false);
 
         /* Flip bit order of all bytes */
-    for(int i = 0; i < len; i++){
+    for(uint32_t i = 0; i < len; i++){
         data[i] = bit_reverse(data[i]);
     }
 }
@@ -471,35 +472,27 @@ static void print_idcode(uint32_t idcode){
     connected_device.id = idcode;
 
     /* ECP5 Parts */
-    for(int i = 0; i < sizeof(ecp_devices)/sizeof(struct device_id_pair); i++){
+    for(unsigned long i = 0; i < sizeof(ecp_devices)/sizeof(struct device_id_pair); i++){
         if(idcode == ecp_devices[i].device_id)
         {
             connected_device.name = ecp_devices[i].device_name;
             connected_device.type = TYPE_ECP5;
-            qInfo() << QString("IDCODE: 0x%1 (%2)")
-                       .arg(idcode,8,16,QLatin1Char('0'))
-                       .arg(ecp_devices[i].device_name);
-//            qprintf("IDCODE: 0x%08x (%s)\n", idcode ,ecp_devices[i].device_name);
+            qprintf("IDCODE: 0x%08x (%s)\n", idcode ,ecp_devices[i].device_name);
             return;
         }
     }
 
     /* NX Parts */
-    for(int i = 0; i < sizeof(nx_devices)/sizeof(struct device_id_pair); i++){
+    for(unsigned long i = 0; i < sizeof(nx_devices)/sizeof(struct device_id_pair); i++){
         if(idcode == nx_devices[i].device_id)
         {
             connected_device.name = nx_devices[i].device_name;
             connected_device.type = TYPE_NX;
-            qInfo() << QString("IDCODE: 0x%1 (%2)")
-                       .arg(idcode,8,16,QLatin1Char('0'))
-                       .arg(nx_devices[i].device_name);
-//			qprintf("IDCODE: 0x%08x (%s)\n", idcode ,nx_devices[i].device_name);
+            qprintf("IDCODE: 0x%08x (%s)\n", idcode ,nx_devices[i].device_name);
             return;
         }
     }
-//	qprintf("IDCODE: 0x%08x does not match :(\n", idcode);
-    qInfo() << QString("IDCODE: 0x%1 does not match :(")
-               .arg(idcode,8,16,QLatin1Char('0'));
+    qprintf("IDCODE: 0x%08x does not match :(\n", idcode);
 }
 
 static void read_idcode(){

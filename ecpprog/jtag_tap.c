@@ -193,9 +193,9 @@ static void jtag_shift_bytes(
 	uint8_t *input_data,
 	uint8_t *output_data,
 	uint32_t data_bits,
-	bool must_end)
+    bool must_end)
 {
-
+    (void)must_end; //Suppress unused warning
 	/* Sanity check */
 	if(data_bits % 8 != 0){
 		printf("Error %u is not a byte multiple\n", data_bits);
