@@ -34,8 +34,6 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <QDebug>
-#include <QString>
 
 #ifdef _WIN32
 #include <io.h> /* _setmode() */
